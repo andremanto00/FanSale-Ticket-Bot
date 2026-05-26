@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_URL = "https://www.fansale.it"
-INTERVAL = 15
-REFRESH_EVERY = 5  # rinaviga sulla home ogni N request per ottenere cookie freschi
+INTERVAL = 30
+REFRESH_EVERY = 10  # rinaviga sulla home ogni N request per ottenere cookie freschi
 
 AVAILABLE_TEXTS = (
     "L'offerta può essere acquistato solo al numero di biglietti visualizzato.",
@@ -17,6 +17,8 @@ AVAILABLE_TEXTS = (
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
+MAX_PRICE = 160  # prezzo massimo accettabile (inclusa commissione)
 
 seen_ids = set()
 _driver = None
@@ -87,8 +89,8 @@ def fetch_offers():
         log(f"Refresh programmato (ogni {REFRESH_EVERY} request)")
         refresh_session()
 
-    # url = f"https://www.fansale.it/json/offers/21061016?_={int(time.time() * 1000)}"  # coez
-    url = f"https://www.fansale.it/json/offers/20456011?_={int(time.time() * 1000)}"  # ultimo
+    url = f"https://www.fansale.it/json/offers/20609364?_{int(time.time() * 1000)}"  # olly
+    #url = f"https://www.fansale.it/json/offers/20456011?_={int(time.time() * 1000)}"  # ultimo
     log(f"fetch() in-browser -> {url}")
 
     result = _do_fetch(url)
@@ -115,6 +117,9 @@ def is_valid(offer):
     if amount != 2 and amount != 1:
         log(f"Offerta {offer_id} scartata: quantità {amount} (richiesta 1 o 2)")
         return False
+    if offer.get("minPurchasablePriceWithBuyerCommission") > MAX_PRICE:
+        log(f"Offerta {offer_id} scartata: prezzo {offer.get('minPurchasablePriceWithBuyerCommission')} € (massimo {MAX_PRICE} €)")
+        return False    
     tooltip = offer.get("evdetailsSplittingTypeTooltipHtml", "")
     if not any(t in tooltip for t in AVAILABLE_TEXTS):
         log(f"Offerta {offer_id} scartata: testo disponibilità assente nel tooltip")
